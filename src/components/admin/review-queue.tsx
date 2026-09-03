@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -59,6 +59,17 @@ export function ReviewQueue({
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<SubmissionStatus | null>("pending");
   const [rejecting, setRejecting] = useState<{ id: string; creator: string } | null>(null);
+  // Radix restores focus to whatever opened a dialog, but this one is opened from
+  // state rather than a DialogTrigger, so closing it dropped focus onto the body
+  // and sent keyboard users back to the top of the page.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+
+  const restoreFocus = () => {
+    const trigger = triggerRef.current;
+    if (trigger?.isConnected) trigger.focus();
+    else headingRef.current?.focus();
+  };
 
   const query = useQuery(
     trpc.submission.queue.queryOptions({ campaignId, page, pageSize: PAGE_SIZE, status }),
@@ -100,7 +111,12 @@ export function ReviewQueue({
   return (
     <section className="space-y-4" aria-labelledby="review-queue-heading">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="review-queue-heading" className="text-lg font-semibold tracking-tight">
+        <h2
+          id="review-queue-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-lg font-semibold tracking-tight outline-none"
+        >
           Review queue
         </h2>
         <Select
@@ -215,12 +231,13 @@ export function ReviewQueue({
                               size="sm"
                               variant="outline"
                               disabled={review.isPending}
-                              onClick={() =>
+                              onClick={(event) => {
+                                triggerRef.current = event.currentTarget;
                                 setRejecting({
                                   id: submission.id,
                                   creator: submission.creatorName,
-                                })
-                              }
+                                });
+                              }}
                             >
                               Reject
                             </Button>
@@ -249,6 +266,7 @@ export function ReviewQueue({
       <RejectDialog
         target={rejecting}
         pending={review.isPending}
+        onCloseAutoFocus={restoreFocus}
         onCancel={() => setRejecting(null)}
         onConfirm={(rejectionReason) =>
           rejecting &&
@@ -268,11 +286,13 @@ function RejectDialog({
   pending,
   onCancel,
   onConfirm,
+  onCloseAutoFocus,
 }: {
   target: { id: string; creator: string } | null;
   pending: boolean;
   onCancel: () => void;
   onConfirm: (reason: string) => void;
+  onCloseAutoFocus: () => void;
 }) {
   const form = useForm<RejectionReasonValues>({
     resolver: zodResolver(rejectionReasonSchema),
@@ -289,7 +309,12 @@ function RejectDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          onCloseAutoFocus();
+        }}
+      >
         <form
           onSubmit={form.handleSubmit((values) => onConfirm(values.rejectionReason))}
           noValidate

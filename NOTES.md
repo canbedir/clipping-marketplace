@@ -218,6 +218,17 @@ Two came out of that audit rather than review, and both were contrast:
   colour, which put the reject button at 3.82:1. Darkening `--destructive` in light mode
   fixes the tinted button and the solid uses together.
 
+Keyboard behaviour I checked by driving it rather than by reading the code: the skip link
+is the first tab stop and becomes visible when focused, the reject dialog opens on Enter,
+moves focus into the textarea, holds focus across repeated tabs and closes on Escape, and
+its validation error is announced through `role="alert"`.
+
+That is where the third fix came from. The dialog is opened from state rather than from a
+`DialogTrigger`, so Radix had nothing to hand focus back to and it fell to the document
+body — every rejection sent a keyboard user back to the top of the page. Closing now
+returns focus to the button that opened the dialog, falling back to the review queue
+heading if that row has since been refetched away.
+
 The audit is not wired into `pnpm test`, because that would put a browser download in the
 way of a clean checkout for a check that needs a running server.
 
