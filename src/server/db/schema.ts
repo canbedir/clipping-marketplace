@@ -13,20 +13,17 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const userRole = pgEnum("user_role", ["admin", "creator"]);
-export const platform = pgEnum("platform", ["tiktok", "instagram", "youtube"]);
-export const campaignStatus = pgEnum("campaign_status", [
-  "draft",
-  "active",
-  "paused",
-  "completed",
-]);
-export const submissionStatus = pgEnum("submission_status", [
-  "pending",
-  "approved",
-  "rejected",
-  "paid",
-]);
+import {
+  CAMPAIGN_STATUSES,
+  PLATFORMS,
+  SUBMISSION_STATUSES,
+  USER_ROLES,
+} from "@/lib/constants";
+
+export const userRole = pgEnum("user_role", USER_ROLES);
+export const platform = pgEnum("platform", PLATFORMS);
+export const campaignStatus = pgEnum("campaign_status", CAMPAIGN_STATUSES);
+export const submissionStatus = pgEnum("submission_status", SUBMISSION_STATUSES);
 
 export const users = pgTable("users", {
   id: uuid().primaryKey().defaultRandom(),
@@ -159,7 +156,3 @@ export type User = typeof users.$inferSelect;
 export type Campaign = typeof campaigns.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type SubmissionMetric = typeof submissionMetrics.$inferSelect;
-export type Platform = (typeof platform.enumValues)[number];
-export type CampaignStatus = (typeof campaignStatus.enumValues)[number];
-export type SubmissionStatus = (typeof submissionStatus.enumValues)[number];
-export type UserRole = (typeof userRole.enumValues)[number];
