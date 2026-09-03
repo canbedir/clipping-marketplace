@@ -25,7 +25,7 @@ others). The switcher writes an HMAC-signed cookie holding a user id; every proc
 resolves the user from that cookie and never from anything in the request payload.
 
 ```bash
-pnpm test                     # 41 tests against a real Postgres
+pnpm test                     # 47 tests against a real Postgres
 pnpm ingest                   # fake a daily metrics sync; safe to run twice
 pnpm ingest 2026-09-01        # or backfill a specific day
 ```
