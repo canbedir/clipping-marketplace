@@ -31,8 +31,9 @@ import {
   PLATFORM_LABELS,
   type Platform,
 } from "@/lib/constants";
+import { formatCents } from "@/lib/money";
 import { useTRPC } from "@/lib/trpc/client";
-import { messageOf } from "@/lib/trpc/errors";
+import { appErrorOf, messageOf } from "@/lib/trpc/errors";
 import {
   campaignFormSchema,
   type CampaignFormOutput,
@@ -76,7 +77,18 @@ export function CampaignForm({
         toast.success("Campaign saved");
         await onSettled(campaign.id);
       },
-      onError: (error) => toast.error(messageOf(error, "Could not save the campaign")),
+      onError: (error) => {
+        const detail = appErrorOf(error);
+        if (detail?.code === "BUDGET_BELOW_COMMITTED") {
+          form.setError("totalBudget", {
+            message: `This campaign has already committed ${formatCents(
+              detail.committed,
+            )} to approved clips, so the budget cannot go below that.`,
+          });
+          return;
+        }
+        toast.error(messageOf(error, "Could not save the campaign"));
+      },
     }),
   );
 

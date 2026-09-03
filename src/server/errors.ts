@@ -5,6 +5,7 @@ import type { CampaignStatus, SubmissionStatus } from "@/lib/constants";
 export type AppErrorDetail =
   | { code: "BUDGET_EXCEEDED"; remaining: number; required: number }
   | { code: "CAMPAIGN_NOT_ACCEPTING"; status: CampaignStatus }
+  | { code: "BUDGET_BELOW_COMMITTED"; committed: number; requested: number }
   | { code: "DUPLICATE_SUBMISSION" }
   | { code: "ALREADY_REVIEWED"; status: SubmissionStatus };
 
@@ -13,6 +14,7 @@ export type AppErrorCode = AppErrorDetail["code"];
 const TRPC_CODE: Record<AppErrorCode, TRPCError["code"]> = {
   BUDGET_EXCEEDED: "CONFLICT",
   CAMPAIGN_NOT_ACCEPTING: "CONFLICT",
+  BUDGET_BELOW_COMMITTED: "CONFLICT",
   DUPLICATE_SUBMISSION: "CONFLICT",
   ALREADY_REVIEWED: "CONFLICT",
 };
@@ -20,6 +22,8 @@ const TRPC_CODE: Record<AppErrorCode, TRPCError["code"]> = {
 const MESSAGES: Record<AppErrorCode, string> = {
   BUDGET_EXCEEDED: "This approval would take the campaign over its budget",
   CAMPAIGN_NOT_ACCEPTING: "This campaign is not accepting submissions",
+  BUDGET_BELOW_COMMITTED:
+    "This campaign has already committed more than the budget you are setting",
   DUPLICATE_SUBMISSION: "That post has already been submitted to this campaign",
   ALREADY_REVIEWED: "This submission has already been reviewed",
 };

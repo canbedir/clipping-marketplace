@@ -28,7 +28,7 @@ others). The switcher writes an HMAC-signed cookie holding a user id; every proc
 resolves the user from that cookie and never from anything in the request payload.
 
 ```bash
-pnpm test                     # 47 tests against a real Postgres
+pnpm test                     # 52 tests against a real Postgres
 pnpm ingest                   # fake a daily metrics sync; safe to run twice
 pnpm ingest 2026-09-01        # or backfill a specific day
 ```
@@ -128,6 +128,28 @@ The consequence is deliberate and worth naming: a clip can keep gaining views af
 campaign is exhausted and earn nothing further. That is what "a campaign never pays out more
 than `total_budget`" means in practice.
 
+**This ordering is my decision, not the brief's.** The brief says approvals are first come,
+first served, and that is about the race: of two admins approving at the same moment, one
+wins. It says nothing about who gets the money as views grow afterwards. I extended the same
+principle to allocation, so an earlier approval keeps what it has been granted and later
+growth takes only what is left. The alternative worth discussing is a per-submission cap —
+no clip may take more than some share of the budget — which is what production clipping
+platforms tend to do, because under pure approval-order one early clip can absorb a campaign
+and starve everyone approved after it. Pro-rata splitting is the third option and I would
+avoid it: it means a creator's payout can go down after they have already seen it.
+
+`campaigns.spent` is a materialised sum, and the CHECK constraint only guards its range, not
+its agreement with the rows it summarises. `tests/invariants.test.ts` closes that gap: it
+drives approvals, rejections, repeated ingests and an eight-way race, then asserts for every
+campaign that `spent` equals `SUM(payable)`, that it never passes the budget, and that a
+campaign is completed exactly when nothing is left.
+
+Editing a campaign takes the same lock, because the budget is a moving ceiling. Lowering it
+below what the campaign has already committed fails with a typed `BUDGET_BELOW_COMMITTED`
+that the form renders on the budget field, rather than letting the CHECK constraint surface
+as a 500. Raising it works, and setting it to exactly what has been committed completes the
+campaign, by the same rule approval and ingest use.
+
 One ordering decision came out of the tests. When a campaign auto-completes because the
 money ran out, a later approval could honestly fail with either "campaign is not accepting"
 or "budget exceeded". The budget check runs first, because that is the one that tells the
@@ -193,15 +215,26 @@ local one — including a campaign that ran out of budget and closed itself.
 
 ## First thing I would fix with another day
 
-Approval reads the latest metric row and grants that amount, but the ingest that follows can
-grant more. That is correct, and it is still two code paths reaching the same conclusion
-about one submission. I would collapse both into a single `settleSubmission(tx, submissionId)`
-that is the only function allowed to move `payable` and `spent`, and have approval and ingest
-both call it. Fewer places to get the clamp wrong, and the concurrency test would then be
-covering one function instead of two.
+**A ledger.** Right now money moves by updating `campaigns.spent` in place, so there is no
+record of which approval or which ingest moved it. I would make budget movements
+append-only — `(campaign_id, submission_id, delta, reason, created_at)` — and treat `spent`
+as a projection of that table rather than the source of truth. It buys three things this
+design cannot give: an audit trail for a creator asking why they earned €600 and were paid
+€200, a way to reverse an approval an admin made by mistake, and a debuggable history when
+the numbers look wrong. For a money system that is the gap that matters most, and it is the
+shape real billing systems take.
 
-Second would be the trigram index above, together with an `EXPLAIN`-backed check that the
-review queue and the creator list still use their indexes at a few hundred thousand rows.
+Second, approval and ingest are two code paths reaching the same conclusion about one
+submission. I would collapse them into a single `settleSubmission(tx, submissionId)` that is
+the only function allowed to move `payable` and `spent`. Fewer places to get the clamp
+wrong, and the concurrency tests would then cover one function instead of two.
+
+Third, the campaign row is a single lock for everything financial, which is right at this
+size and wrong at Wayv's. A daily ingest over a campaign with thousands of creators takes
+that lock once per submission, serially, and blocks approvals while it runs. The fix is to
+batch ingest per campaign — compute outside the lock, apply the deltas inside one — which
+trades away the per-submission failure isolation the brief asks for, so it is a decision to
+make with real numbers rather than in advance.
 
 ## Where AI tooling came in
 

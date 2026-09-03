@@ -65,7 +65,7 @@ There is no sign-in, by design. Use the switcher in the top right to view the ap
 admin (`admin@wayv.test`) or a creator (`mila@creators.test` and three others).
 
 ```bash
-pnpm test                     # 47 tests against a real Postgres
+pnpm test                     # 52 tests against a real Postgres
 pnpm ingest                   # fake a daily metrics sync; safe to run twice
 ```
 

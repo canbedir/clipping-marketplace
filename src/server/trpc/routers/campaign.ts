@@ -9,6 +9,7 @@ import {
   updateCampaignInput,
 } from "@/lib/validation/campaign";
 import { campaigns } from "@/server/db/schema";
+import { AppError } from "@/server/errors";
 import { adminProcedure, createTRPCRouter, creatorProcedure } from "../init";
 import { pageOf, paginate, totalCount } from "../pagination";
 
@@ -61,14 +62,39 @@ export const campaignRouter = createTRPCRouter({
   }),
 
   update: adminProcedure.input(updateCampaignInput).mutation(async ({ ctx, input }) => {
-    const [campaign] = await ctx.db
-      .update(campaigns)
-      .set({ ...input.data, updatedAt: new Date() })
-      .where(eq(campaigns.id, input.id))
-      .returning();
+    // Editing the budget moves the ceiling, so it takes the same campaign lock an
+    // approval does. Without it an edit could race an approval and land on a
+    // budget below what that approval has just committed.
+    return ctx.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ spent: campaigns.spent })
+        .from(campaigns)
+        .where(eq(campaigns.id, input.id))
+        .limit(1)
+        .for("update");
 
-    if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
-    return campaign;
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+
+      if (input.data.totalBudget < current.spent) {
+        throw new AppError({
+          code: "BUDGET_BELOW_COMMITTED",
+          committed: current.spent,
+          requested: input.data.totalBudget,
+        });
+      }
+
+      // Same rule as approval and ingest: a campaign with nothing left is completed.
+      const exhausted = current.spent >= input.data.totalBudget;
+      const status = exhausted && input.data.status === "active" ? "completed" : input.data.status;
+
+      const [campaign] = await tx
+        .update(campaigns)
+        .set({ ...input.data, status, updatedAt: new Date() })
+        .where(eq(campaigns.id, input.id))
+        .returning();
+
+      return campaign!;
+    });
   }),
 
   overview: adminProcedure
