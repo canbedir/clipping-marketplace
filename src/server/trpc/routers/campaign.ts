@@ -8,7 +8,7 @@ import {
   createCampaignInput,
   updateCampaignInput,
 } from "@/lib/validation/campaign";
-import { campaigns, submissions } from "@/server/db/schema";
+import { campaigns } from "@/server/db/schema";
 import { adminProcedure, createTRPCRouter, creatorProcedure } from "../init";
 import { pageOf, paginate, totalCount } from "../pagination";
 
@@ -30,15 +30,14 @@ export const campaignRouter = createTRPCRouter({
         startsAt: campaigns.startsAt,
         endsAt: campaigns.endsAt,
         pendingCount: sql<number>`(
-          SELECT count(*) FROM ${submissions}
-          WHERE ${submissions.campaignId} = ${campaigns.id}
-            AND ${submissions.status} = 'pending'
+          SELECT count(*) FROM submissions sub
+          WHERE sub.campaign_id = campaigns.id AND sub.status = 'pending'
         )`.mapWith(Number),
         totalCount,
       })
       .from(campaigns)
       .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(campaigns.createdAt))
+      .orderBy(desc(campaigns.createdAt), desc(campaigns.id))
       .limit(paginate(input.page, input.pageSize).limit)
       .offset(paginate(input.page, input.pageSize).offset);
 
@@ -153,15 +152,14 @@ export const campaignRouter = createTRPCRouter({
           startsAt: campaigns.startsAt,
           endsAt: campaigns.endsAt,
           alreadySubmitted: sql<boolean>`EXISTS (
-            SELECT 1 FROM ${submissions}
-            WHERE ${submissions.campaignId} = ${campaigns.id}
-              AND ${submissions.creatorId} = ${ctx.user.id}
+            SELECT 1 FROM submissions sub
+            WHERE sub.campaign_id = campaigns.id AND sub.creator_id = ${ctx.user.id}
           )`,
           totalCount,
         })
         .from(campaigns)
         .where(and(...filters))
-        .orderBy(desc(campaigns.createdAt))
+        .orderBy(desc(campaigns.createdAt), desc(campaigns.id))
         .limit(paginate(input.page, input.pageSize).limit)
         .offset(paginate(input.page, input.pageSize).offset);
 

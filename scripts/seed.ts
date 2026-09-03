@@ -77,6 +77,7 @@ async function main() {
         status: c.status,
         startsAt: day(-30 + index),
         endsAt: day(30 + index),
+        createdAt: subDays(new Date(), CAMPAIGN_SEEDS.length - index),
       })),
     )
     .returning();

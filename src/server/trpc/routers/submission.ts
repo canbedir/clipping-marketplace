@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
+import type { SubmissionStatus } from "@/lib/constants";
 import { earningsForViews } from "@/lib/payout";
 import { parsePostUrl } from "@/lib/post-url";
 import {
@@ -12,25 +13,44 @@ import {
   reviewSubmissionInput,
 } from "@/lib/validation/submission";
 import { isUniqueViolation } from "@/server/db/errors";
-import { campaigns, submissionMetrics, submissions, users } from "@/server/db/schema";
+import { campaigns, submissions, users } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
 import { approveSubmission, rejectSubmission } from "@/server/services/review";
 import { adminProcedure, createTRPCRouter, creatorProcedure } from "../init";
 import { pageOf, paginate, totalCount } from "../pagination";
 
+// Written with explicit table qualification rather than Drizzle column
+// interpolation: inside a subquery an unqualified "id" binds to the subquery's
+// own table, which silently makes the correlation always false.
 const latestViews = sql<number>`COALESCE((
-  SELECT m.views FROM ${submissionMetrics} m
-  WHERE m.submission_id = ${submissions.id}
+  SELECT m.views FROM submission_metrics m
+  WHERE m.submission_id = submissions.id
   ORDER BY m.captured_at DESC
   LIMIT 1
 ), 0)`.mapWith(Number);
 
 const latestCapturedAt = sql<string | null>`(
-  SELECT to_char(m.captured_at, 'YYYY-MM-DD') FROM ${submissionMetrics} m
-  WHERE m.submission_id = ${submissions.id}
+  SELECT to_char(m.captured_at, 'YYYY-MM-DD') FROM submission_metrics m
+  WHERE m.submission_id = submissions.id
   ORDER BY m.captured_at DESC
   LIMIT 1
 )`;
+
+// Approved work is worth what the campaign has actually committed. A rejected
+// clip is worth nothing, however many views it went on to collect. Only a
+// submission still awaiting review gets an estimate.
+function earningsOf(submission: {
+  status: SubmissionStatus;
+  payable: number;
+  views: number;
+  payoutPer1kViews: number;
+}): number {
+  if (submission.status === "approved" || submission.status === "paid") {
+    return submission.payable;
+  }
+  if (submission.status === "rejected") return 0;
+  return earningsForViews(submission.views, submission.payoutPer1kViews);
+}
 
 export const submissionRouter = createTRPCRouter({
   create: creatorProcedure.input(createSubmissionInput).mutation(async ({ ctx, input }) => {
@@ -106,7 +126,7 @@ export const submissionRouter = createTRPCRouter({
       .from(submissions)
       .innerJoin(campaigns, eq(campaigns.id, submissions.campaignId))
       .where(and(...filters))
-      .orderBy(desc(submissions.createdAt))
+      .orderBy(desc(submissions.createdAt), desc(submissions.id))
       .limit(paginate(input.page, input.pageSize).limit)
       .offset(paginate(input.page, input.pageSize).offset);
 
@@ -114,15 +134,7 @@ export const submissionRouter = createTRPCRouter({
 
     return {
       ...page,
-      items: page.items.map((item) => ({
-        ...item,
-        // Approved work is worth what the campaign has actually committed;
-        // anything still pending is only ever an estimate.
-        earnings:
-          item.status === "approved" || item.status === "paid"
-            ? item.payable
-            : earningsForViews(item.views, item.payoutPer1kViews),
-      })),
+      items: page.items.map((item) => ({ ...item, earnings: earningsOf(item) })),
     };
   }),
 
@@ -148,7 +160,7 @@ export const submissionRouter = createTRPCRouter({
       .from(submissions)
       .innerJoin(users, eq(users.id, submissions.creatorId))
       .where(and(...filters))
-      .orderBy(desc(submissions.createdAt))
+      .orderBy(desc(submissions.createdAt), desc(submissions.id))
       .limit(paginate(input.page, input.pageSize).limit)
       .offset(paginate(input.page, input.pageSize).offset);
 

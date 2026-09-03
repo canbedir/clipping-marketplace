@@ -141,7 +141,11 @@ export function MySubmissions() {
                       <TableCell className="text-right tabular-nums">
                         {formatCents(submission.earnings)}
                         <span className="block text-xs text-muted-foreground">
-                          {settled ? "confirmed" : "estimated"}
+                          {settled
+                            ? "confirmed"
+                            : submission.status === "rejected"
+                              ? "not paid"
+                              : "estimated"}
                         </span>
                       </TableCell>
                     </TableRow>

@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/chart";
 import { formatCount } from "@/lib/money";
 
+// The preset ships a light-to-dark neutral ramp; chart-1 is the lightest of
+// them and disappears on a white background for a single series.
 const config = {
-  views: { label: "Views", color: "var(--chart-1)" },
+  views: { label: "Views", color: "var(--chart-4)" },
 } satisfies ChartConfig;
 
 export function DailyViewsChart({ data }: { data: { day: string; views: number }[] }) {

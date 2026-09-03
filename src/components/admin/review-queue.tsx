@@ -156,9 +156,12 @@ export function ReviewQueue({
               </TableHeader>
               <TableBody>
                 {query.data.items.map((submission) => {
-                  const earns =
-                    submission.status === "approved" || submission.status === "paid"
-                      ? submission.payable
+                  const settled =
+                    submission.status === "approved" || submission.status === "paid";
+                  const earns = settled
+                    ? submission.payable
+                    : submission.status === "rejected"
+                      ? 0
                       : earningsForViews(submission.views, payoutPer1kViews);
                   const busy = review.isPending && review.variables?.submissionId === submission.id;
 
