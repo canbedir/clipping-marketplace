@@ -23,13 +23,14 @@ const t = initTRPC.context<Context>().create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 
+// tRPC hands a resolver failure back as a result rather than throwing it, so a
+// try/catch here would never see a domain error.
 const translateAppErrors = t.middleware(async ({ next }) => {
-  try {
-    return await next();
-  } catch (error) {
-    if (error instanceof AppError) throw error.toTRPCError();
-    throw error;
+  const result = await next();
+  if (!result.ok && isAppError(result.error.cause)) {
+    throw result.error.cause.toTRPCError();
   }
+  return result;
 });
 
 export const publicProcedure = t.procedure.use(translateAppErrors);

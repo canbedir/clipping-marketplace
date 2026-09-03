@@ -35,3 +35,15 @@ export const sessionCookieOptions = {
   secure: env.NODE_ENV === "production",
   maxAge: 60 * 60 * 24 * 30,
 } as const;
+
+export function serializeSessionCookie(userId: string | null): string {
+  const parts = [
+    `${SESSION_COOKIE}=${userId ? createSessionCookieValue(userId) : ""}`,
+    `Path=${sessionCookieOptions.path}`,
+    `SameSite=Lax`,
+    "HttpOnly",
+    `Max-Age=${userId ? sessionCookieOptions.maxAge : 0}`,
+  ];
+  if (sessionCookieOptions.secure) parts.push("Secure");
+  return parts.join("; ");
+}
