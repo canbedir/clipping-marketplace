@@ -10,23 +10,7 @@ import {
 } from "@/lib/validation/campaign";
 import { campaigns, submissions } from "@/server/db/schema";
 import { adminProcedure, createTRPCRouter, creatorProcedure } from "../init";
-
-const totalCount = sql<number>`count(*) over ()`.mapWith(Number);
-
-function paginate(page: number, pageSize: number) {
-  return { limit: pageSize, offset: (page - 1) * pageSize };
-}
-
-function pageOf<T>(rows: (T & { totalCount: number })[], page: number, pageSize: number) {
-  const total = rows[0]?.totalCount ?? 0;
-  return {
-    items: rows.map(({ totalCount: _ignored, ...rest }) => rest as T),
-    total,
-    page,
-    pageSize,
-    pageCount: Math.max(1, Math.ceil(total / pageSize)),
-  };
-}
+import { pageOf, paginate, totalCount } from "../pagination";
 
 export const campaignRouter = createTRPCRouter({
   list: adminProcedure.input(campaignListInput).query(async ({ ctx, input }) => {

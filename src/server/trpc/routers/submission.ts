@@ -16,8 +16,7 @@ import { campaigns, submissionMetrics, submissions, users } from "@/server/db/sc
 import { AppError } from "@/server/errors";
 import { approveSubmission, rejectSubmission } from "@/server/services/review";
 import { adminProcedure, createTRPCRouter, creatorProcedure } from "../init";
-
-const totalCount = sql<number>`count(*) over ()`.mapWith(Number);
+import { pageOf, paginate, totalCount } from "../pagination";
 
 const latestViews = sql<number>`COALESCE((
   SELECT m.views FROM ${submissionMetrics} m
@@ -32,21 +31,6 @@ const latestCapturedAt = sql<string | null>`(
   ORDER BY m.captured_at DESC
   LIMIT 1
 )`;
-
-function paginate(page: number, pageSize: number) {
-  return { limit: pageSize, offset: (page - 1) * pageSize };
-}
-
-function pageOf<T>(rows: (T & { totalCount: number })[], page: number, pageSize: number) {
-  const total = rows[0]?.totalCount ?? 0;
-  return {
-    items: rows.map(({ totalCount: _ignored, ...rest }) => rest as T),
-    total,
-    page,
-    pageSize,
-    pageCount: Math.max(1, Math.ceil(total / pageSize)),
-  };
-}
 
 export const submissionRouter = createTRPCRouter({
   create: creatorProcedure.input(createSubmissionInput).mutation(async ({ ctx, input }) => {

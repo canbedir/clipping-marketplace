@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z, ZodError } from "zod";
 
-import { AppError, isAppError, type AppErrorDetail } from "@/server/errors";
+import { isAppError, type AppErrorDetail } from "@/server/errors";
 import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
