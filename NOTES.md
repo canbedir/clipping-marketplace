@@ -30,6 +30,13 @@ pnpm ingest                   # fake a daily metrics sync; safe to run twice
 pnpm ingest 2026-09-01        # or backfill a specific day
 ```
 
+Every script reads `.env` by default and can be pointed elsewhere without editing it,
+which is how the deployed database gets migrated:
+
+```bash
+ENV_FILE=.env.production.local pnpm db:migrate
+```
+
 `pnpm test` uses a second database (`clipping_marketplace_test`) created by
 `docker/init-test-db.sql` in the same container, configured through the committed
 `.env.test`. It migrates itself on first run, so a clean checkout only needs the steps
