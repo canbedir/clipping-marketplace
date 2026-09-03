@@ -36,13 +36,13 @@ export const sessionCookieOptions = {
   maxAge: 60 * 60 * 24 * 30,
 } as const;
 
-export function serializeSessionCookie(userId: string | null): string {
+export function serializeSessionCookie(userId: string): string {
   const parts = [
-    `${SESSION_COOKIE}=${userId ? createSessionCookieValue(userId) : ""}`,
+    `${SESSION_COOKIE}=${createSessionCookieValue(userId)}`,
     `Path=${sessionCookieOptions.path}`,
     `SameSite=Lax`,
     "HttpOnly",
-    `Max-Age=${userId ? sessionCookieOptions.maxAge : 0}`,
+    `Max-Age=${sessionCookieOptions.maxAge}`,
   ];
   if (sessionCookieOptions.secure) parts.push("Secure");
   return parts.join("; ");

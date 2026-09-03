@@ -38,6 +38,3 @@ export async function createTRPCContext(opts: {
   };
 }
 
-export function createTestContext(overrides: Partial<Context> & { user: User | null }): Context {
-  return { db, resHeaders: null, ...overrides };
-}

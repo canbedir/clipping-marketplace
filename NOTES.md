@@ -37,8 +37,13 @@ Every script reads `.env` by default and can be pointed elsewhere without editin
 which is how the deployed database gets migrated:
 
 ```bash
-ENV_FILE=.env.production.local pnpm db:migrate
+ENV_FILE=.env.deploy pnpm db:migrate
 ```
+
+Worth naming the file something Next does not recognise. `next build` and `next start`
+load `.env.production.local` ahead of `.env` on their own, so keeping a deployment
+connection string under that name silently points a local production server at the remote
+database — which cost me an afternoon of confusing test results before I spotted it.
 
 `pnpm test` uses a second database (`clipping_marketplace_test`) created by
 `docker/init-test-db.sql` in the same container, configured through the committed
@@ -194,9 +199,27 @@ real API.
 Vercel, with the database from Vercel's Neon integration. Production uses Neon's pooled
 connection string: pgbouncer in transaction mode keeps `BEGIN ... COMMIT` on one backend
 connection, so `SELECT ... FOR UPDATE` behaves exactly as it does locally. Migrations were
-applied from a workstation with `ENV_FILE=.env.production.local pnpm db:migrate`, and the
+applied from a workstation with `ENV_FILE=.env.deploy pnpm db:migrate`, and the
 same seed script populated it, so the deployed data exercises the same edge cases as the
 local one — including a campaign that ran out of budget and closed itself.
+
+## Accessibility
+
+Audited with axe-core against a production build, across the signed-out home page, the
+campaign list, the campaign overview, the create form both empty and in its error state,
+the reject dialog while open, and both creator screens. It reports no violations at
+WCAG 2.1 AA.
+
+Two came out of that audit rather than review, and both were contrast:
+
+- The `draft` and `completed` badges used the muted token pair, which measures 4.34:1
+  against its own background — under the 4.5:1 threshold. They now use a darker neutral.
+- The preset renders destructive buttons as coloured text on a 10% tint of the same
+  colour, which put the reject button at 3.82:1. Darkening `--destructive` in light mode
+  fixes the tinted button and the solid uses together.
+
+The audit is not wired into `pnpm test`, because that would put a browser download in the
+way of a clean checkout for a check that needs a running server.
 
 ## Left out on purpose
 

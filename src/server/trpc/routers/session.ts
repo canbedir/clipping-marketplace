@@ -41,9 +41,4 @@ export const sessionRouter = createTRPCRouter({
       ctx.resHeaders?.append("set-cookie", serializeSessionCookie(user.id));
       return user;
     }),
-
-  signOut: publicProcedure.mutation(({ ctx }) => {
-    ctx.resHeaders?.append("set-cookie", serializeSessionCookie(null));
-    return { ok: true };
-  }),
 });
