@@ -10,7 +10,7 @@ export const pool =
   globalForDb.pool ??
   new Pool({
     connectionString: env.DATABASE_URL,
-    max: env.NODE_ENV === "test" ? 5 : 10,
+    max: 10,
   });
 
 if (env.NODE_ENV !== "production") {

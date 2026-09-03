@@ -65,16 +65,18 @@ export async function approveSubmission(
       throw new AppError({ code: "ALREADY_REVIEWED", status: submission.status });
     }
 
-    if (campaign.status !== "active") {
-      throw new AppError({ code: "CAMPAIGN_NOT_ACCEPTING", status: campaign.status });
-    }
-
     const views = await latestViews(tx, submissionId);
     const required = earningsForViews(views, campaign.payoutPer1kViews);
     const remaining = remainingBudget(campaign.totalBudget, campaign.spent);
 
+    // Budget first: a campaign that auto-completed because it ran out of money
+    // should tell the reviewer that, not just that it is closed.
     if (required > remaining) {
       throw new AppError({ code: "BUDGET_EXCEEDED", remaining, required });
+    }
+
+    if (campaign.status !== "active") {
+      throw new AppError({ code: "CAMPAIGN_NOT_ACCEPTING", status: campaign.status });
     }
 
     const spent = campaign.spent + required;
