@@ -1,5 +1,8 @@
 # Clipping Marketplace
 
+**Live: [clipping-marketplace.vercel.app](https://clipping-marketplace.vercel.app)** — no sign-in,
+pick a user from the switcher in the top right.
+
 A cut-down paid clipping marketplace, built as a take-home assignment. Brands run
 campaigns, creators submit short-form clips from TikTok, Instagram and YouTube, and
 approved clips earn `floor(views / 1000) × payout_per_1k_views` — never more than the

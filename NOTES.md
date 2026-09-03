@@ -3,6 +3,9 @@
 A cut-down clipping marketplace: brands run paid campaigns, creators submit clips, and
 approved clips earn `floor(views / 1000) * payout_per_1k_views` up to the campaign budget.
 
+Live at **https://clipping-marketplace.vercel.app** (Vercel, with Neon Postgres in
+Frankfurt). There is no sign-in: pick a user from the switcher in the top right.
+
 Most of the effort went into the money path. The UI is deliberately close to shadcn
 defaults.
 
@@ -163,6 +166,15 @@ real API.
   adding a transition would have been inventing a feature.
 - **Money is entered in euros and stored in cents.** The shared schema parses the string to
   integer cents itself instead of multiplying a float by 100.
+
+## Deployment
+
+Vercel, with the database from Vercel's Neon integration. Production uses Neon's pooled
+connection string: pgbouncer in transaction mode keeps `BEGIN ... COMMIT` on one backend
+connection, so `SELECT ... FOR UPDATE` behaves exactly as it does locally. Migrations were
+applied from a workstation with `ENV_FILE=.env.production.local pnpm db:migrate`, and the
+same seed script populated it, so the deployed data exercises the same edge cases as the
+local one — including a campaign that ran out of budget and closed itself.
 
 ## Left out on purpose
 
